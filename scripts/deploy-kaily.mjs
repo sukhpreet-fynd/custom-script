@@ -2,6 +2,7 @@ import { deploy } from '@kaily-ai/chat-sdk/deploy';
 
 const token = process.env.KAILY_APP_TOKEN || process.env.VITE_KAILY_APP_TOKEN;
 const environment = process.env.KAILY_DEPLOY_ENVIRONMENT || process.env.VITE_KAILY_ENVIRONMENT || 'production';
+const serviceBaseUrl = process.env.KAILY_SERVICE_BASE_URL;
 
 if (!token) {
   console.error('Missing KAILY_APP_TOKEN. Example: KAILY_APP_TOKEN=... npm run deploy:kaily');
@@ -11,7 +12,8 @@ if (!token) {
 try {
   const cdnUrl = await deploy('./src/widget.tsx', {
     token,
-    environment,
+    environment: serviceBaseUrl ? undefined : environment,
+    serviceBaseUrl,
     outfile: 'kaily-chat-widget.js',
   });
 
