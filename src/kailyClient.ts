@@ -67,9 +67,8 @@ export class KailyChatClient {
     const result = await this.bot.message(
       {
         text,
-        path: window.location.pathname || '/',
         thread_id: threadId,
-      },
+      } as any,
       {
         deltaListener: (response: any) => {
           handlers.onDelta(response?.data?.content ?? '');

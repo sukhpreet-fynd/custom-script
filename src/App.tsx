@@ -1,19 +1,19 @@
 import {
   Bot,
-  Check,
+  ChevronDown,
+  Ellipsis,
   Loader2,
   MessageSquarePlus,
-  PlugZap,
+  Mic,
+  Paperclip,
   RefreshCw,
   Send,
-  Settings,
   StopCircle,
-  Trash2,
-  WifiOff,
+  X,
 } from 'lucide-react';
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChatSettings } from './env';
-import { getDefaultSettings, normalizeEnvironment, type ChatEnvironment } from './env';
+import { getDefaultSettings } from './env';
 import { KailyChatClient } from './kailyClient';
 import './styles.css';
 
@@ -26,21 +26,24 @@ type ChatMessage = {
   status?: string;
 };
 
-type ThreadSummary = {
-  id: string;
-  title: string;
-  updatedAt?: string;
-};
-
 type AppProps = {
   embedded?: boolean;
   initialSettings?: Partial<ChatSettings>;
 };
 
-const starters = [
-  'What can you help me do?',
-  'Summarize what this copilot can do.',
-  'Help me troubleshoot an order issue.',
+const starters = ['How can Kaily help me?', 'What integrations can I use?', 'Is there a free plan?', 'Can I see a demo?'];
+
+const introMessages: ChatMessage[] = [
+  {
+    id: 'intro-1',
+    role: 'assistant',
+    content: 'Hey! Want to deploy a conversational AI agent?',
+  },
+  {
+    id: 'intro-2',
+    role: 'assistant',
+    content: 'Let me help you figure out if Kaily is the right fit.',
+  },
 ];
 
 function extractReplyText(payload: any): string {
@@ -57,41 +60,20 @@ function extractReplyText(payload: any): string {
   return '';
 }
 
-function normalizeThreads(items: any[]): ThreadSummary[] {
-  return items
-    .map((item) => {
-      const id = String(item?.id ?? item?.thread_id ?? item?.threadId ?? '');
-      if (!id) return null;
-      return {
-        id,
-        title: String(item?.title ?? item?.name ?? item?.text ?? 'Untitled chat'),
-        updatedAt: item?.updatedAt ?? item?.updated_at ?? item?.createdAt ?? item?.created_at,
-      };
-    })
-    .filter(Boolean) as ThreadSummary[];
-}
-
 function nowId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 export default function App({ embedded = false, initialSettings = {} }: AppProps) {
-  const [settings, setSettings] = useState<ChatSettings>(() => getDefaultSettings(initialSettings));
-  const [tokenInput, setTokenInput] = useState(settings.token);
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: 'welcome',
-      role: 'assistant',
-      content: 'Connect your Kaily copilot and start a conversation.',
-    },
-  ]);
-  const [threads, setThreads] = useState<ThreadSummary[]>([]);
+  const [settings] = useState<ChatSettings>(() => getDefaultSettings(initialSettings));
+  const [messages, setMessages] = useState<ChatMessage[]>(introMessages);
   const [currentThreadId, setCurrentThreadId] = useState<string>();
   const [draft, setDraft] = useState('');
   const [status, setStatus] = useState<'idle' | 'connecting' | 'connected' | 'sending' | 'error'>('idle');
   const [error, setError] = useState('');
   const [progress, setProgress] = useState('');
-  const [settingsOpen, setSettingsOpen] = useState(!settings.token);
+  const [minimized, setMinimized] = useState(false);
+  const [privacyVisible, setPrivacyVisible] = useState(true);
 
   const clientRef = useRef<KailyChatClient | null>(null);
   const assistantMessageIdRef = useRef<string | null>(null);
@@ -103,13 +85,15 @@ export default function App({ embedded = false, initialSettings = {} }: AppProps
   const connectionLabel = useMemo(() => {
     if (status === 'connecting') return 'Connecting';
     if (status === 'sending') return 'Streaming';
-    if (status === 'connected') return 'Connected';
-    if (status === 'error') return 'Needs attention';
-    return 'Disconnected';
+    if (status === 'connected') return 'Online';
+    if (status === 'error') return 'Unavailable';
+    return 'Starting';
   }, [status]);
 
   useEffect(() => {
     clientRef.current = new KailyChatClient();
+    void connect();
+
     return () => clientRef.current?.disconnect();
   }, []);
 
@@ -120,80 +104,39 @@ export default function App({ embedded = false, initialSettings = {} }: AppProps
     });
   }, [messages, progress]);
 
-  useEffect(() => {
-    if (settings.token) {
-      void connect(settings);
-    }
-  }, []);
-
-  async function connect(nextSettings = settings) {
-    const token = tokenInput.trim() || nextSettings.token.trim();
-    if (!token) {
-      setSettingsOpen(true);
-      setError('Add a Kaily copilot app token to connect.');
+  async function connect() {
+    if (!settings.token) {
       setStatus('error');
+      setError('Kaily agent token is missing from the widget build.');
       return;
     }
-
-    const normalized: ChatSettings = {
-      token,
-      environment: normalizeEnvironment(nextSettings.environment),
-      surfaceClient: nextSettings.surfaceClient.trim() || 'kaily-chat-bot-ui',
-    };
 
     try {
       setStatus('connecting');
       setError('');
-      await clientRef.current?.connect(normalized);
-      setSettings(normalized);
-      setTokenInput(normalized.token);
+      await clientRef.current?.connect(settings);
       setStatus('connected');
-      setSettingsOpen(false);
-      setMessages((items) =>
-        items[0]?.id === 'welcome'
-          ? [
-              {
-                id: 'connected',
-                role: 'assistant',
-                content: 'Connected. Ask a question or choose a starter prompt.',
-              },
-            ]
-          : items,
-      );
-      await refreshThreads();
     } catch (connectError) {
       setStatus('error');
-      setSettingsOpen(true);
       setError(connectError instanceof Error ? connectError.message : 'Unable to connect to Kaily.');
     }
-  }
-
-  async function refreshThreads() {
-    const items = await clientRef.current?.getThreads();
-    setThreads(normalizeThreads(items ?? []));
   }
 
   function newChat() {
     setCurrentThreadId(undefined);
     setProgress('');
-    setMessages([
-      {
-        id: nowId('new'),
-        role: 'assistant',
-        content: 'New conversation ready.',
-      },
-    ]);
-  }
-
-  async function deleteThread(threadId: string) {
-    await clientRef.current?.deleteThread(threadId);
-    setThreads((items) => items.filter((item) => item.id !== threadId));
-    if (currentThreadId === threadId) newChat();
+    setError('');
+    setMessages(introMessages.map((message) => ({ ...message, id: nowId(message.id) })));
   }
 
   async function send(text = draft) {
     const trimmed = text.trim();
     if (!trimmed || status === 'sending') return;
+
+    if (status !== 'connected') {
+      await connect();
+      if (status === 'error') return;
+    }
 
     const userMessage: ChatMessage = {
       id: nowId('user'),
@@ -210,6 +153,7 @@ export default function App({ embedded = false, initialSettings = {} }: AppProps
     assistantMessageIdRef.current = assistantMessage.id;
     setDraft('');
     setProgress('');
+    setError('');
     setStatus('sending');
     setMessages((items) => [...items, userMessage, assistantMessage]);
 
@@ -234,19 +178,19 @@ export default function App({ embedded = false, initialSettings = {} }: AppProps
           const finalText = extractReplyText(payload);
           const targetId = assistantMessageIdRef.current;
           if (threadId) setCurrentThreadId(threadId);
-          if (finalText) {
-            setMessages((items) =>
-              items.map((item) =>
-                item.id === targetId
-                  ? {
-                      ...item,
-                      content: finalText,
-                      status: undefined,
-                    }
-                  : item,
-              ),
-            );
-          }
+          if (!finalText) return;
+
+          setMessages((items) =>
+            items.map((item) =>
+              item.id === targetId
+                ? {
+                    ...item,
+                    content: finalText,
+                    status: undefined,
+                  }
+                : item,
+            ),
+          );
         },
         onProgress: (content, percent) => {
           if (!content) return;
@@ -261,7 +205,6 @@ export default function App({ embedded = false, initialSettings = {} }: AppProps
       if (nextThreadId) setCurrentThreadId(nextThreadId);
       setStatus('connected');
       setProgress('');
-      await refreshThreads();
     } catch (sendError) {
       setStatus('connected');
       setProgress('');
@@ -272,7 +215,7 @@ export default function App({ embedded = false, initialSettings = {} }: AppProps
           item.id === targetId
             ? {
                 ...item,
-                content: 'I could not complete that request. Check the token, environment, and network access.',
+                content: 'I could not complete that request. Please try again.',
                 status: undefined,
               }
             : item,
@@ -294,10 +237,6 @@ export default function App({ embedded = false, initialSettings = {} }: AppProps
     );
   }
 
-  function handleEnvironmentChange(environment: ChatEnvironment) {
-    setSettings((current) => ({ ...current, environment }));
-  }
-
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     void send();
@@ -310,128 +249,58 @@ export default function App({ embedded = false, initialSettings = {} }: AppProps
     }
   }
 
+  if (minimized) {
+    return (
+      <main className={embedded ? 'app app-embedded' : 'app'}>
+        <button className="widget-launcher" type="button" onClick={() => setMinimized(false)} aria-label="Open Kaily chat">
+          <Bot size={28} aria-hidden="true" />
+        </button>
+      </main>
+    );
+  }
+
   return (
     <main className={embedded ? 'app app-embedded' : 'app'}>
-      <section className="shell" aria-label="Kaily chatbot">
-        <aside className="sidebar">
-          <div className="brand">
-            <span className="brand-icon">
-              <Bot size={22} aria-hidden="true" />
+      <section className="widget-shell" aria-label="Kaily chatbot">
+        <header className="widget-header">
+          <div className="widget-title">
+            <span className="widget-logo">
+              <Bot size={24} aria-hidden="true" />
             </span>
             <div>
-              <h1>Kaily Chat</h1>
-              <p>{connectionLabel}</p>
+              <h1>Kaily AI Agent</h1>
+              <p className={`connection-text status-${status}`}>{connectionLabel}</p>
             </div>
           </div>
-
-          <div className={`status-pill status-${status}`}>
-            {connected ? <Check size={16} aria-hidden="true" /> : <WifiOff size={16} aria-hidden="true" />}
-            <span>{settings.environment}</span>
-          </div>
-
-          <div className="sidebar-actions">
-            <button className="icon-button" type="button" onClick={newChat} aria-label="New chat" title="New chat">
+          <div className="widget-actions">
+            <button className="header-button" type="button" onClick={newChat} aria-label="New chat" title="New chat">
               <MessageSquarePlus size={18} aria-hidden="true" />
             </button>
-            <button
-              className="icon-button"
-              type="button"
-              onClick={() => void refreshThreads()}
-              aria-label="Refresh threads"
-              title="Refresh threads"
-            >
+            <button className="header-button" type="button" onClick={() => void connect()} aria-label="Reconnect" title="Reconnect">
               <RefreshCw size={18} aria-hidden="true" />
             </button>
-            <button
-              className="icon-button"
-              type="button"
-              onClick={() => setSettingsOpen((value) => !value)}
-              aria-label="Connection settings"
-              title="Connection settings"
-            >
-              <Settings size={18} aria-hidden="true" />
+            <button className="header-button" type="button" aria-label="More options" title="More options">
+              <Ellipsis size={22} aria-hidden="true" />
+            </button>
+            <button className="header-button" type="button" onClick={() => setMinimized(true)} aria-label="Close chat" title="Close chat">
+              <X size={21} aria-hidden="true" />
             </button>
           </div>
-
-          <div className="thread-list" aria-label="Threads">
-            {threads.length === 0 ? (
-              <p className="empty-copy">No saved threads yet.</p>
-            ) : (
-              threads.map((thread) => (
-                <div className="thread-row" data-active={thread.id === currentThreadId} key={thread.id}>
-                  <button className="thread-button" type="button" onClick={() => setCurrentThreadId(thread.id)}>
-                    <span>{thread.title}</span>
-                    {thread.updatedAt ? <time>{new Date(thread.updatedAt).toLocaleDateString()}</time> : null}
-                  </button>
-                  <button
-                    className="delete-button"
-                    type="button"
-                    onClick={() => void deleteThread(thread.id)}
-                    aria-label={`Delete ${thread.title}`}
-                    title="Delete thread"
-                  >
-                    <Trash2 size={15} aria-hidden="true" />
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        </aside>
+        </header>
 
         <section className="chat-panel">
-          {settingsOpen ? (
-            <form
-              className="settings-panel"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void connect();
-              }}
-            >
-              <label>
-                <span>App token</span>
-                <input
-                  type="password"
-                  value={tokenInput}
-                  onChange={(event) => setTokenInput(event.target.value)}
-                  placeholder="Paste your Kaily copilot app token"
-                  autoComplete="off"
-                />
-              </label>
-              <label>
-                <span>Surface client</span>
-                <input
-                  type="text"
-                  value={settings.surfaceClient}
-                  onChange={(event) => setSettings((current) => ({ ...current, surfaceClient: event.target.value }))}
-                />
-              </label>
-              <div className="segmented" aria-label="Environment">
-                {(['production', 'uat', 'sit'] as ChatEnvironment[]).map((environment) => (
-                  <button
-                    key={environment}
-                    type="button"
-                    className={settings.environment === environment ? 'selected' : ''}
-                    onClick={() => handleEnvironmentChange(environment)}
-                  >
-                    {environment}
-                  </button>
-                ))}
-              </div>
-              <button className="primary-button" type="submit" disabled={status === 'connecting'}>
-                {status === 'connecting' ? <Loader2 size={17} aria-hidden="true" /> : <PlugZap size={17} aria-hidden="true" />}
-                Connect
-              </button>
-            </form>
-          ) : null}
-
           {error ? <div className="error-banner">{error}</div> : null}
 
           <div className="transcript" ref={transcriptRef}>
             {messages.map((message) => (
               <article className={`message message-${message.role}`} key={message.id}>
-                <div className="message-meta">{message.role === 'user' ? 'You' : message.role === 'system' ? 'System' : 'Kaily'}</div>
                 <div className="message-bubble">
-                  {message.status ? <span className="typing">{message.status}</span> : null}
+                  {message.status ? (
+                    <span className="typing">
+                      <Loader2 size={16} aria-hidden="true" />
+                      {message.status}
+                    </span>
+                  ) : null}
                   {message.content ? <p>{message.content}</p> : null}
                 </div>
               </article>
@@ -447,14 +316,36 @@ export default function App({ embedded = false, initialSettings = {} }: AppProps
             ))}
           </div>
 
+          <div className="powered-by">
+            <span>K</span>
+            Powered by Kaily
+          </div>
+
+          {privacyVisible ? (
+            <div className="privacy-strip">
+              <p>
+                By chatting, you agree to our <a href="https://kaily.ai" target="_blank" rel="noreferrer">privacy policy</a>.
+              </p>
+              <button type="button" onClick={() => setPrivacyVisible(false)} aria-label="Dismiss notice">
+                <X size={18} aria-hidden="true" />
+              </button>
+            </div>
+          ) : null}
+
           <form className="composer" onSubmit={handleSubmit}>
+            <button className="composer-tool" type="button" aria-label="Attach file" title="Attach file">
+              <Paperclip size={20} aria-hidden="true" />
+            </button>
             <textarea
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
               onKeyDown={handleComposerKeyDown}
-              placeholder={connected ? 'Message your Kaily copilot' : 'Connect before sending a message'}
+              placeholder={connected ? 'Ask me anything about Kaily' : 'Connecting to Kaily'}
               rows={1}
             />
+            <button className="composer-tool" type="button" aria-label="Voice input" title="Voice input">
+              <Mic size={20} aria-hidden="true" />
+            </button>
             {status === 'sending' ? (
               <button className="stop-button" type="button" onClick={() => void stop()} aria-label="Stop generation" title="Stop generation">
                 <StopCircle size={20} aria-hidden="true" />
@@ -467,6 +358,9 @@ export default function App({ embedded = false, initialSettings = {} }: AppProps
           </form>
         </section>
       </section>
+      <button className="widget-dock" type="button" onClick={() => setMinimized(true)} aria-label="Minimize Kaily chat">
+        <ChevronDown size={30} aria-hidden="true" />
+      </button>
     </main>
   );
 }

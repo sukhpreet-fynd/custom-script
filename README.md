@@ -1,15 +1,14 @@
-# Kaily Chat Bot UI
+# Kaily Chat Widget
 
-A Vite React chatbot UI powered by `@kaily-ai/chat-sdk`.
+A compact mobile-style chat widget powered by `@kaily-ai/chat-sdk`.
 
 ## Setup
 
 ```bash
 npm install
-cp .env.example .env.local
 ```
 
-Set `VITE_KAILY_APP_TOKEN` in `.env.local`, or leave it blank and paste the token in the UI.
+The widget auto-connects with the configured Kaily agent token and uses `surfaceClient: "web"`. There is no runtime token or surface-client form in the UI.
 
 ## Run locally
 
@@ -41,10 +40,10 @@ https://sukhpreet-fynd.github.io/custom-script/
 
 ## Deploy as a Kaily CDN widget
 
-The SDK deploy helper bundles `src/widget.tsx` and uploads it to Kaily's PixelBin CDN. It supports plain CSS imports only, so this project does not use Tailwind, PostCSS, Sass, or Less.
+The SDK deploy helper in `@kaily-ai/chat-sdk@2.1.6-beta.6` bundles `src/widget.tsx` and deploys it with a Boltic Personal Access Token. It supports plain CSS imports only, so this project does not use Tailwind, PostCSS, Sass, or Less.
 
 ```bash
-KAILY_APP_TOKEN=your_kaily_copilot_app_token npm run deploy:kaily
+BOLTIC_PAT=your_boltic_personal_access_token KAILY_APP_TOKEN=your_kaily_copilot_app_token npm run deploy:kaily
 ```
 
 The command prints a CDN script URL. Embed it on a page:
