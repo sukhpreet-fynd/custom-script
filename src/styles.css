@@ -43,9 +43,10 @@ button:disabled {
 
 .app {
   display: grid;
-  min-height: 100vh;
-  place-items: center;
-  padding: 28px;
+  min-height: 100svh;
+  align-items: end;
+  justify-items: end;
+  padding: 28px 28px 104px;
   background:
     linear-gradient(145deg, rgba(13, 118, 110, 0.08), transparent 34%),
     linear-gradient(315deg, rgba(17, 24, 39, 0.08), transparent 35%),
@@ -54,8 +55,8 @@ button:disabled {
 
 .app-embedded {
   position: fixed;
-  right: 22px;
-  bottom: 22px;
+  right: 28px;
+  bottom: 104px;
   z-index: 2147483000;
   display: block;
   min-height: 0;
@@ -67,7 +68,7 @@ button:disabled {
   display: grid;
   grid-template-rows: 76px minmax(0, 1fr);
   width: min(430px, calc(100vw - 32px));
-  height: min(760px, calc(100vh - 44px));
+  height: min(760px, calc(100svh - 132px));
   overflow: hidden;
   border: 1px solid rgba(20, 20, 20, 0.08);
   border-radius: 22px;
@@ -396,22 +397,14 @@ button:disabled {
 .widget-dock,
 .widget-launcher {
   position: fixed;
-  right: 24px;
-  bottom: 20px;
+  right: 28px;
+  bottom: 24px;
   width: 62px;
   height: 62px;
   border-radius: 999px;
   background: #050505;
   color: #ffffff;
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28);
-}
-
-.widget-dock {
-  transform: translate(10px, 38px);
-}
-
-.widget-launcher {
-  transform: none;
 }
 
 @keyframes spin {
@@ -423,16 +416,19 @@ button:disabled {
 @media (max-width: 540px) {
   .app {
     min-height: 100svh;
-    padding: 10px;
+    padding: 10px 10px 88px;
   }
 
   .app-embedded {
-    inset: 10px;
+    right: 10px;
+    bottom: 88px;
+    left: 10px;
+    top: 10px;
   }
 
   .widget-shell {
     width: min(100%, 430px);
-    height: min(760px, calc(100svh - 20px));
+    height: min(760px, calc(100svh - 108px));
     border-radius: 20px;
   }
 
@@ -461,6 +457,6 @@ button:disabled {
   .widget-dock,
   .widget-launcher {
     right: 18px;
-    bottom: 16px;
+    bottom: 18px;
   }
 }
