@@ -1,7 +1,7 @@
 import { CopilotPlatform } from '@kaily-ai/chat-sdk';
 
 const token = process.env.KAILY_APP_TOKEN || process.env.VITE_KAILY_APP_TOKEN;
-const environment = process.env.KAILY_DEPLOY_ENVIRONMENT || process.env.VITE_KAILY_ENVIRONMENT || 'production';
+const environment = process.env.KAILY_DEPLOY_ENVIRONMENT || process.env.VITE_KAILY_ENVIRONMENT || 'uat';
 const pat = process.env.BOLTIC_PAT;
 
 if (!token) {

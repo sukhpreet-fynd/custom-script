@@ -43,7 +43,7 @@ https://sukhpreet-fynd.github.io/custom-script/
 The SDK deploy helper in `@kaily-ai/chat-sdk@2.1.6-beta.6` bundles `src/widget.tsx` and deploys it with a Boltic Personal Access Token. It supports plain CSS imports only, so this project does not use Tailwind, PostCSS, Sass, or Less.
 
 ```bash
-BOLTIC_PAT=your_boltic_personal_access_token KAILY_APP_TOKEN=your_kaily_copilot_app_token npm run deploy:kaily
+BOLTIC_PAT=your_boltic_personal_access_token KAILY_APP_TOKEN=your_kaily_copilot_app_token KAILY_DEPLOY_ENVIRONMENT=uat npm run deploy:kaily
 ```
 
 The command prints a CDN script URL. Embed it on a page:
